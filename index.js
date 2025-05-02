@@ -6,11 +6,11 @@ const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
 const express = require('express');
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000; // ✅ Use PORT from environment for Render compatibility
 
 const token = process.env.TOKEN;
+const clientId = process.env.CLIENT_ID; // ✅ Add this to your .env file
 const mongo = process.env.MONGODB;
-const clientId = process.env.CLIENT_ID;
 
 const channelSelections = {}; // User ID to channel ID map
 
@@ -40,12 +40,12 @@ async function registerCommands() {
     );
     console.log('Slash commands registered.');
   } catch (error) {
-    console.error(error);
+    console.error('Failed to register commands:', error);
   }
 }
 
 client.once('ready', () => {
-  console.log('Bot is ready!');
+  console.log('🤖 Bot is ready!');
   registerCommands();
 });
 
@@ -103,7 +103,7 @@ app.post('/send-stock', (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+  console.log(`🌐 Server is running on port ${port}`);
 });
 
 client.login(token);
