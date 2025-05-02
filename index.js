@@ -156,20 +156,24 @@ app.post('/send-stock', async (req, res) => {
   let addedSeeds = false;
   let addedGears = false;
 
+  // Iterate through the fields to handle section titles and items
   for (const field of embedData.fields) {
-    // Check for section titles and add them only once
-    if (field.name.toLowerCase().includes('seeds') && !addedSeeds) {
-      embed.addFields({ name: '🌱 Seeds', value: '\u200B', inline: false });  // Add empty value for section title spacing
+    const fieldNameLower = field.name.toLowerCase();
+
+    // Only add "Seeds" section once
+    if (fieldNameLower.includes('seeds') && !addedSeeds) {
+      embed.addFields({ name: '🌱 Seeds', value: '\u200B', inline: false });  // Add empty value for spacing
       addedSeeds = true;
     }
 
-    if (field.name.toLowerCase().includes('gear') && !addedGears) {
+    // Only add "Gears" section once
+    if (fieldNameLower.includes('gear') && !addedGears) {
       embed.addFields({ name: '🛠️ Gears', value: '\u200B', inline: false });
       addedGears = true;
     }
 
-    // Handle field value formatting (strip dollar sign if not needed)
-    const fieldValue = field.value.replace('$', '');  // Remove $ sign if not necessary
+    // Strip the $ sign from values and avoid duplication
+    const fieldValue = field.value.replace(/\$/g, '');  // Remove all $ signs
     embed.addFields({
       name: field.name,
       value: fieldValue,
