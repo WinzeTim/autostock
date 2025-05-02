@@ -10,6 +10,7 @@ const port = 3000;
 
 const token = process.env.TOKEN;
 const mongo = process.env.MONGODB;
+const clientId = process.env.CLIENT_ID;
 
 const channelSelections = {}; // User ID to channel ID map
 
