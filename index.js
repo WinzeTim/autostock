@@ -79,14 +79,25 @@ client.on('interactionCreate', async interaction => {
   }
 
   else if (commandName === 'setroles') {
-    if (!member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-      return interaction.reply({ content: '❌ You must be a server admin to use this command.', ephemeral: true });
-    }
+  if (!member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+    await interaction.reply({ content: '❌ You must be a server admin to use this command.', ephemeral: true });
+    return;
+  }
+
+  try {
     const rolesInput = interaction.options.getString('roles');
     const roles = rolesInput.split(',').map(r => r.trim());
     roleSelections[guildId] = roles;
-    await interaction.reply(`✅ Roles saved: ${roles.join(', ')}`);
+
+    // Respond within 3 seconds
+    await interaction.reply({ content: `✅ Roles saved: ${roles.join(', ')}` });
+  } catch (err) {
+    console.error('Error handling /setroles:', err);
+    if (!interaction.replied) {
+      await interaction.reply({ content: '❌ Something went wrong saving roles.', ephemeral: true });
+    }
   }
+}
 
   else if (commandName === 'help') {
     await interaction.reply({
