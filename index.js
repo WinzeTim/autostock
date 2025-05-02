@@ -107,7 +107,7 @@ client.on('ready', async () => {
 
 // Handle commands
 client.on('interactionCreate', async interaction => {
-  if (!interaction.isCommand()) return;
+  if (!interaction.isChatInputCommand()) return;
 
   const { commandName, member, guildId } = interaction;
 
@@ -117,6 +117,27 @@ client.on('interactionCreate', async interaction => {
     if (!member.permissions.has(PermissionsBitField.Flags.Administrator)) {
       return interaction.reply({ content: '❌ You must be an admin to use this.', ephemeral: true });
     }
+
+    const selectedChannel = interaction.options.getChannel('channel');
+
+    try {
+      // Acknowledge the interaction early
+      await interaction.deferReply({ ephemeral: true });
+
+      // Perform the DB update
+      await ChannelSetting.findOneAndUpdate(
+        { guildId },
+        { guildId, channelId: selectedChannel.id },
+        { upsert: true }
+      );
+
+      await interaction.editReply(`✅ Stock notifications will now be sent to ${selectedChannel}.`);
+    } catch (err) {
+      console.error('Error updating channel:', err);
+      await interaction.editReply('❌ Failed to update the notification channel.');
+    }
+  }
+});
 
     const selectedChannel = interaction.options.getChannel('channel');
 
