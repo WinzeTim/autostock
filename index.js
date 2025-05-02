@@ -224,7 +224,7 @@ app.post('/send-stock', async (req, res) => {
 function updateBotStatus() {
   const activities = [
     () => ({ type: 3, name: `/help` }), // Listening
-    () => ({ type: 3, name: `Watching ${client.guilds.cache.size} servers...` }), // Watching
+    () => ({ type: 3, name: `${client.guilds.cache.size} servers...` }), // Watching
   ];
 
   let i = 0;
