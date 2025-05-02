@@ -30,7 +30,7 @@ const gearOptions = [
   'Godly Sprinkler', 'Advanced Sprinkler', 'Master Sprinkler', 'Lightning Rod'
 ];
 
-// Register slash commands
+// Slash command registration
 async function registerCommands(clientId) {
   const commands = [
     new SlashCommandBuilder()
@@ -44,60 +44,32 @@ async function registerCommands(clientId) {
     new SlashCommandBuilder()
       .setName('setroles')
       .setDescription('Set roles to be pinged for stock updates by item.')
-      .addStringOption(option =>
-        option.setName('apple')
-          .setDescription('Role to ping for Apple Seeds.')
-          .setRequired(false)
-      )
-      .addStringOption(option =>
-        option.setName('bamboo')
-          .setDescription('Role to ping for Bamboo Seeds.')
-          .setRequired(false)
-      )
-      .addStringOption(option =>
-        option.setName('watermelon')
-          .setDescription('Role to ping for Watermelon Seeds.')
-          .setRequired(false)
-      )
-      .addStringOption(option =>
-        option.setName('pumpkin')
-          .setDescription('Role to ping for Pumpkin Seeds.')
-          .setRequired(false)
-      )
-      .addStringOption(option =>
-        option.setName('cactus')
-          .setDescription('Role to ping for Cactus Seeds.')
-          .setRequired(false)
-      )
-      .addStringOption(option =>
-        option.setName('gear')
-          .setDescription('Role to ping for Gear items.')
-          .setRequired(false)
-      ),
+      .addStringOption(option => option.setName('apple').setDescription('Role to ping for Apple Seeds.'))
+      .addStringOption(option => option.setName('bamboo').setDescription('Role to ping for Bamboo Seeds.'))
+      .addStringOption(option => option.setName('watermelon').setDescription('Role to ping for Watermelon Seeds.'))
+      .addStringOption(option => option.setName('pumpkin').setDescription('Role to ping for Pumpkin Seeds.'))
+      .addStringOption(option => option.setName('cactus').setDescription('Role to ping for Cactus Seeds.'))
+      .addStringOption(option => option.setName('gear').setDescription('Role to ping for Gear items.')),
     new SlashCommandBuilder()
       .setName('help')
       .setDescription('Lists all available commands.')
   ].map(cmd => cmd.toJSON());
 
-  await rest.put(
-    Routes.applicationCommands(clientId),
-    { body: commands }
-  );
-
+  await rest.put(Routes.applicationCommands(clientId), { body: commands });
   console.log('✅ Slash commands registered.');
 }
 
-// Load stored channel/role data
+// Load stored channel/role data (future-proofing)
 async function loadSettings() {
   const settings = await ChannelSetting.find();
   for (const setting of settings) {
     const guild = await client.guilds.fetch(setting.guildId).catch(() => null);
     if (!guild) continue;
-    const channel = await client.channels.fetch(setting.channelId).catch(() => null);
-    if (!channel) continue;
+    await client.channels.fetch(setting.channelId).catch(() => null);
   }
 }
 
+// Bot ready event
 client.on('ready', async () => {
   console.log('🤖 Bot is ready!');
   await registerCommands(client.user.id);
@@ -105,12 +77,11 @@ client.on('ready', async () => {
   updateBotStatus();
 });
 
-// Handle commands
+// Handle slash commands
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
   const { commandName, member, guildId } = interaction;
-
   if (!guildId) return;
 
   if (commandName === 'setchannel') {
@@ -121,33 +92,17 @@ client.on('interactionCreate', async interaction => {
     const selectedChannel = interaction.options.getChannel('channel');
 
     try {
-      // Acknowledge the interaction early
       await interaction.deferReply({ ephemeral: true });
-
-      // Perform the DB update
       await ChannelSetting.findOneAndUpdate(
         { guildId },
         { guildId, channelId: selectedChannel.id },
         { upsert: true }
       );
-
       await interaction.editReply(`✅ Stock notifications will now be sent to ${selectedChannel}.`);
     } catch (err) {
       console.error('Error updating channel:', err);
       await interaction.editReply('❌ Failed to update the notification channel.');
     }
-  }
-});
-
-    const selectedChannel = interaction.options.getChannel('channel');
-
-    await ChannelSetting.findOneAndUpdate(
-      { guildId },
-      { guildId, channelId: selectedChannel.id },
-      { upsert: true }
-    );
-
-    await interaction.reply(`✅ Stock notifications will now be sent to ${selectedChannel}.`);
   }
 
   else if (commandName === 'setroles') {
@@ -167,7 +122,7 @@ client.on('interactionCreate', async interaction => {
       { upsert: true }
     );
 
-    await interaction.reply(`✅ Roles saved: ${JSON.stringify(roles)}`);
+    await interaction.reply({ content: `✅ Roles saved: ${JSON.stringify(roles)}`, ephemeral: true });
   }
 
   else if (commandName === 'help') {
@@ -181,6 +136,7 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
+// Handle POST from webhook
 app.post('/send-stock', async (req, res) => {
   const stockData = req.body;
   if (!stockData || !stockData.embeds || !Array.isArray(stockData.embeds)) {
@@ -203,7 +159,6 @@ app.post('/send-stock', async (req, res) => {
     });
   }
 
-  // Send to all registered channels
   const settings = await ChannelSetting.find();
   for (const setting of settings) {
     const channel = await client.channels.fetch(setting.channelId).catch(() => null);
@@ -211,7 +166,7 @@ app.post('/send-stock', async (req, res) => {
       try {
         await channel.send({ embeds: [embed] });
       } catch (err) {
-        console.error(`Failed to send to channel ${setting.channelId}:`, err);
+        console.error(`❌ Failed to send to channel ${setting.channelId}:`, err);
       }
     }
   }
@@ -219,11 +174,11 @@ app.post('/send-stock', async (req, res) => {
   res.sendStatus(200);
 });
 
-// Status rotation
+// Status update rotation
 function updateBotStatus() {
   const activities = [
-    () => ({ type: 3, name: `/help` }), // Listening
-    () => ({ type: 3, name: `${client.guilds.cache.size} servers...` }), // Watching
+    () => ({ type: 3, name: `/help` }),
+    () => ({ type: 3, name: `${client.guilds.cache.size} servers...` }),
   ];
 
   let i = 0;
@@ -234,15 +189,16 @@ function updateBotStatus() {
   }, 10000);
 }
 
-// Start server
+// Root route for health check
 app.get('/', (req, res) => {
   res.send('✅ Stock bot is running.');
 });
 
+// Start MongoDB connection and server
 mongoose.connect(mongoUri)
   .then(() => {
     console.log('🟢 Connected to MongoDB.');
-    app.listen(port, () => console.log(`🚀 Express running at http://localhost:${port}`));
+    app.listen(port, () => console.log(`🚀 Express server running on http://localhost:${port}`));
     client.login(token);
   })
   .catch(err => {
