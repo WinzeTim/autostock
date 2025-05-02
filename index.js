@@ -43,11 +43,36 @@ async function registerCommands(clientId) {
       ),
     new SlashCommandBuilder()
       .setName('setroles')
-      .setDescription('Select roles to be pinged for stock updates.')
+      .setDescription('Set roles to be pinged for stock updates by item.')
       .addStringOption(option =>
-        option.setName('roles')
-          .setDescription('Comma-separated list of roles to ping.')
-          .setRequired(true)
+        option.setName('apple')
+          .setDescription('Role to ping for Apple Seeds.')
+          .setRequired(false)
+      )
+      .addStringOption(option =>
+        option.setName('bamboo')
+          .setDescription('Role to ping for Bamboo Seeds.')
+          .setRequired(false)
+      )
+      .addStringOption(option =>
+        option.setName('watermelon')
+          .setDescription('Role to ping for Watermelon Seeds.')
+          .setRequired(false)
+      )
+      .addStringOption(option =>
+        option.setName('pumpkin')
+          .setDescription('Role to ping for Pumpkin Seeds.')
+          .setRequired(false)
+      )
+      .addStringOption(option =>
+        option.setName('cactus')
+          .setDescription('Role to ping for Cactus Seeds.')
+          .setRequired(false)
+      )
+      .addStringOption(option =>
+        option.setName('gear')
+          .setDescription('Role to ping for Gear items.')
+          .setRequired(false)
       ),
     new SlashCommandBuilder()
       .setName('help')
@@ -109,8 +134,11 @@ client.on('interactionCreate', async interaction => {
       return interaction.reply({ content: '❌ You must be an admin to use this.', ephemeral: true });
     }
 
-    const rolesInput = interaction.options.getString('roles');
-    const roles = rolesInput.split(',').map(r => r.trim());
+    const roles = {};
+    ['apple', 'bamboo', 'watermelon', 'pumpkin', 'cactus', 'gear'].forEach(item => {
+      const role = interaction.options.getString(item);
+      if (role) roles[item] = role;
+    });
 
     await ChannelSetting.findOneAndUpdate(
       { guildId },
@@ -118,14 +146,14 @@ client.on('interactionCreate', async interaction => {
       { upsert: true }
     );
 
-    await interaction.reply(`✅ Roles saved: ${roles.join(', ')}`);
+    await interaction.reply(`✅ Roles saved: ${JSON.stringify(roles)}`);
   }
 
   else if (commandName === 'help') {
     await interaction.reply({
       content: `📘 Commands:
 - /setchannel — Set stock notification channel (admin only)
-- /setroles — Set roles to ping (admin only)
+- /setroles — Set roles to ping by item (admin only)
 - /help — Show this help message`,
       ephemeral: true
     });
@@ -149,9 +177,17 @@ app.post('/send-stock', async (req, res) => {
   for (const item of items) {
     const [name, quantity] = item.split(' : ').map(s => s.trim());
     if (!name || !quantity) continue;
-    const isGear = gearOptions.some(gear => name.includes(gear));
-    if (isGear) gears.push({ name, quantity });
-    else seeds.push({ name, quantity });
+    
+    // Remove the "$" sign and trim spaces
+    const cleanedName = name.replace('$', '').trim();
+    const cleanedQuantity = quantity.replace('$', '').trim();  // if you want to remove the '$' from the quantity as well
+
+    const isGear = gearOptions.some(gear => cleanedName.includes(gear));
+    if (isGear) {
+      gears.push({ name: cleanedName, quantity: cleanedQuantity });
+    } else {
+      seeds.push({ name: cleanedName, quantity: cleanedQuantity });
+    }
   }
 
   if (seeds.length > 0) {
