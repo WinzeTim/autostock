@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const { Client, GatewayIntentBits, EmbedBuilder, PermissionsBitField } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, PermissionsBitField, Partials } = require('discord.js');
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v10');
@@ -10,143 +10,105 @@ const port = 10000;
 
 const token = process.env.TOKEN;
 
-const channelSelections = {}; // Maps user IDs to channel IDs
-const roleSelections = {};    // Maps user IDs to arrays of role IDs
-
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+  partials: [Partials.Channel],
 });
 
 const rest = new REST({ version: '10' }).setToken(token);
 
-// Define seed and gear options
+const channelSelections = {}; // User ID -> Channel ID
+const roleSelections = {};    // Guild ID -> Array of role names
+
 const seedOptions = [
-  'Daffodil Seeds',
-  'Watermelon Seeds',
-  'Pumpkin Seeds',
-  'Apple Seeds',
-  'Bamboo Seeds',
-  'Coconut Seeds',
-  'Cactus Seeds',
-  'Dragon Fruit Seeds',
-  'Mango Seeds',
-  'Grape Seeds',
-  'Mushroom Seeds',
+  'Daffodil Seeds', 'Watermelon Seeds', 'Pumpkin Seeds', 'Apple Seeds', 'Bamboo Seeds',
+  'Coconut Seeds', 'Cactus Seeds', 'Dragon Fruit Seeds', 'Mango Seeds', 'Grape Seeds', 'Mushroom Seeds'
 ];
 
 const gearOptions = [
-  'Godly Sprinkler',
-  'Advanced Sprinkler',
-  'Master Sprinkler',
-  'Lightning Rod',
+  'Godly Sprinkler', 'Advanced Sprinkler', 'Master Sprinkler', 'Lightning Rod'
 ];
 
-async function registerCommands() {
+async function registerCommands(clientId) {
   const commands = [
     new SlashCommandBuilder()
       .setName('setchannel')
       .setDescription('Select a channel to receive stock notifications.')
+      .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator)
       .addChannelOption(option =>
         option.setName('channel')
           .setDescription('The channel to receive stock notifications.')
           .setRequired(true)
-      )
-      .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator), // Admin-only
-
+      ),
     new SlashCommandBuilder()
       .setName('setroles')
       .setDescription('Select roles to be pinged for stock updates.')
+      .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator)
       .addStringOption(option =>
         option.setName('roles')
-          .setDescription('Select roles to be pinged.')
+          .setDescription('Select roles to ping (comma-separated).')
           .setRequired(true)
-          .addChoices(
-            ...seedOptions.map(seed => ({ name: seed, value: seed })),
-            ...gearOptions.map(gear => ({ name: gear, value: gear }))
-          )
       ),
-
     new SlashCommandBuilder()
       .setName('help')
-      .setDescription('Display available commands and their descriptions.'),
+      .setDescription('Lists all available commands.'),
   ].map(command => command.toJSON());
 
-  try {
-    console.log('Registering slash commands...');
-    await rest.put(
-      Routes.applicationCommands(client.user.id),
-      { body: commands },
-    );
-    console.log('Slash commands registered.');
-  } catch (error) {
-    console.error('Error registering commands:', error);
-  }
+  await rest.put(
+    Routes.applicationCommands(clientId),
+    { body: commands }
+  );
+  console.log('✅ Slash commands registered.');
 }
 
 client.once('ready', () => {
-  console.log('🤖 Discord bot is ready!');
-  registerCommands();
+  console.log('🤖 Bot is ready!');
+  registerCommands(client.user.id);
 });
 
 client.on('interactionCreate', async interaction => {
   if (!interaction.isCommand()) return;
 
-  const { commandName } = interaction;
+  const { commandName, member, guildId, user } = interaction;
 
   if (commandName === 'setchannel') {
-    if (!interaction.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-      return interaction.reply({ content: '❌ You need Administrator permissions to use this command.', ephemeral: true });
+    if (!member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+      return interaction.reply({ content: '❌ You must be a server admin to use this command.', ephemeral: true });
     }
-
     const selectedChannel = interaction.options.getChannel('channel');
-    channelSelections[interaction.user.id] = selectedChannel.id;
+    channelSelections[user.id] = selectedChannel.id;
     await interaction.reply(`✅ Stock notifications will now be sent to ${selectedChannel}.`);
   }
 
-  else if (commandName === 'setroles') {
-    const selectedRole = interaction.options.getString('roles');
-    const guild = interaction.guild;
-
-    // Find the role by name
-    const role = guild.roles.cache.find(r => r.name === selectedRole);
-    if (!role) {
-      return interaction.reply({ content: `❌ Role "${selectedRole}" not found in this server.`, ephemeral: true });
+  if (commandName === 'setroles') {
+    if (!member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+      return interaction.reply({ content: '❌ You must be a server admin to use this command.', ephemeral: true });
     }
-
-    // Store the role ID for the user
-    if (!roleSelections[interaction.user.id]) {
-      roleSelections[interaction.user.id] = [];
-    }
-    if (!roleSelections[interaction.user.id].includes(role.id)) {
-      roleSelections[interaction.user.id].push(role.id);
-    }
-
-    await interaction.reply(`✅ You will be pinged for updates related to "${selectedRole}".`);
+    const rolesInput = interaction.options.getString('roles');
+    const roles = rolesInput.split(',').map(r => r.trim());
+    roleSelections[guildId] = roles;
+    await interaction.reply(`✅ Roles saved: ${roles.join(', ')}`);
   }
 
-  else if (commandName === 'help') {
-    const helpEmbed = new EmbedBuilder()
-      .setTitle('📖 Bot Commands')
-      .setDescription('Here are the available commands:')
-      .addFields(
-        { name: '/setchannel', value: 'Select a channel to receive stock notifications. (Admin only)' },
-        { name: '/setroles', value: 'Select roles to be pinged for stock updates.' },
-        { name: '/help', value: 'Display this help message.' }
-      )
-      .setColor(0x00AE86);
-
-    await interaction.reply({ embeds: [helpEmbed], ephemeral: true });
+  if (commandName === 'help') {
+    await interaction.reply({
+      content: '📘 Available Commands:\n
+/setchannel - Admin-only. Set the channel to receive stock updates.\n/setroles - Admin-only. Select roles to ping for seeds/gears.\n/help - Show this help message.',
+      ephemeral: true
+    });
   }
 });
 
-// Express server setup
+// Express Web Server
+app.get('/', (req, res) => {
+  res.send('✅ Stock bot is running. Use POST /send-stock to send data.');
+});
+
 app.use(express.json());
 
 app.post('/send-stock', async (req, res) => {
   const stockData = req.body;
-  if (!stockData) return res.status(400).send('No stock data received');
-
-  console.log('📦 Received stock data:', stockData);
+  if (!stockData || !stockData.content) return res.status(400).send('Invalid stock data.');
 
   const embed = new EmbedBuilder()
     .setTitle('🛍️ Shop Stock Update')
@@ -154,37 +116,48 @@ app.post('/send-stock', async (req, res) => {
     .setColor(0x58D68D);
 
   const items = stockData.content.split('\n');
+  const seeds = [], gears = [];
 
-  items.forEach(item => {
-    const [name, quantity] = item.split(' : ');
-    if (name && quantity) {
-      const isGear = quantity.toLowerCase().includes('gear');
-      const emoji = isGear ? '🛠️' : '🌱';
-      embed.addFields({
-        name: `${emoji} ${name}`,
-        value: `Stock: ${quantity}`,
-        inline: true,
-      });
-    }
-  });
+  for (const item of items) {
+    const [name, quantity] = item.split(' : ').map(s => s.trim());
+    if (!name || !quantity) continue;
+    const isGear = gearOptions.some(gear => name.includes(gear));
+    if (isGear) gears.push({ name, quantity });
+    else seeds.push({ name, quantity });
+  }
 
-  // Send the embed to each user's selected channel and mention their selected roles
+  if (seeds.length > 0) {
+    embed.addFields({
+      name: '🌱 Seeds',
+      value: seeds.map(s => `${s.name}: ${s.quantity}`).join('\n'),
+      inline: true
+    });
+  }
+
+  if (gears.length > 0) {
+    embed.addFields({
+      name: '🛠️ Gears',
+      value: gears.map(g => `${g.name}: ${g.quantity}`).join('\n'),
+      inline: true
+    });
+  }
+
   for (const userId in channelSelections) {
     const channelId = channelSelections[userId];
     const channel = client.channels.cache.get(channelId);
-    const guild = channel.guild;
+    if (!channel) continue;
 
-    if (channel) {
-      try {
-        const roleIds = roleSelections[userId] || [];
-        const roleMentions = roleIds.map(id => `<@&${id}>`).join(' ');
-        const content = roleMentions || null;
+    const guildId = channel.guildId;
+    const rolesToPing = roleSelections[guildId] || [];
+    const roleMentions = channel.guild.roles.cache
+      .filter(role => rolesToPing.includes(role.name))
+      .map(role => `<@&${role.id}>`).join(' ');
 
-        await channel.send({ content, embeds: [embed] });
-        console.log(`✅ Message sent to channel ${channel.name}`);
-      } catch (error) {
-        console.error(`❌ Failed to send message to channel ${channelId}:`, error);
-      }
+    try {
+      await channel.send({ content: roleMentions || null, embeds: [embed] });
+      console.log(`✅ Sent stock update to ${channel.name}`);
+    } catch (error) {
+      console.error(`❌ Failed to send to ${channel.name}:`, error);
     }
   }
 
@@ -192,7 +165,7 @@ app.post('/send-stock', async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`🌐 Express server running on http://localhost:${port}`);
+  console.log(`🚀 Server is running on http://localhost:${port}`);
 });
 
 client.login(token);
