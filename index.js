@@ -6,7 +6,7 @@ const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
 const express = require('express');
 const app = express();
-const port = process.env.PORT || 3000;
+const port = 10000;
 
 const token = process.env.TOKEN;
 const mongo = process.env.MONGODB;
@@ -34,12 +34,12 @@ async function registerCommands() {
   try {
     console.log('Registering slash commands...');
     await rest.put(
-      Routes.applicationCommands(process.env.CLIENT_ID), // Make sure you have your CLIENT_ID environment variable set.
+      Routes.applicationCommands(client.user.id),
       { body: commands },
     );
     console.log('Slash commands registered.');
   } catch (error) {
-    console.error('Error registering commands:', error);
+    console.error(error);
   }
 }
 
@@ -55,7 +55,6 @@ client.on('interactionCreate', async interaction => {
     const selectedChannel = interaction.options.getChannel('channel');
     channelSelections[interaction.user.id] = selectedChannel.id;
     await interaction.reply(`✅ Stock notifications will now be sent to ${selectedChannel}.`);
-    console.log(`Channel ${selectedChannel.name} selected by ${interaction.user.tag}.`);
   }
 });
 
@@ -78,18 +77,21 @@ app.post('/send-stock', async (req, res) => {
     .setDescription('Here are the current shop items available:')
     .setColor(0x58D68D);
 
-  // Add fields for seeds and gears if they exist
-  if (stockData.seeds?.length > 0) {
-    stockData.seeds.forEach(seed => {
-      embed.addFields({ name: `🌱 ${seed.name}`, value: `Stock: ${seed.stock}`, inline: true });
-    });
-  }
+  // Parse the stock data and add fields to the embed
+  const items = stockData.content.split('\n'); // Split by line
 
-  if (stockData.gears?.length > 0) {
-    stockData.gears.forEach(gear => {
-      embed.addFields({ name: `🛠️ ${gear.name}`, value: `Stock: ${gear.stock}`, inline: true });
-    });
-  }
+  items.forEach(item => {
+    const [name, quantity] = item.split(' : ');
+    if (name && quantity) {
+      const isGear = quantity.includes('gear'); // Detect gears based on the keyword
+      const emoji = isGear ? '🛠️' : '🌱'; // Use appropriate emoji for gear or seed
+      embed.addFields({
+        name: `${emoji} ${name}`,
+        value: `Stock: ${quantity}`,
+        inline: true,
+      });
+    }
+  });
 
   console.log('Sending embed:', embed); // Log the embed before sending
 
