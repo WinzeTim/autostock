@@ -109,6 +109,7 @@ app.use(express.json());
 
 app.post('/send-stock', async (req, res) => {
   const stockData = req.body;
+
   if (!stockData || !stockData.content) return res.status(400).send('Invalid stock data.');
 
   const embed = new EmbedBuilder()
@@ -119,30 +120,38 @@ app.post('/send-stock', async (req, res) => {
   const items = stockData.content.split('\n');
   const seeds = [], gears = [];
 
+  // Process each item and sort into seeds or gears
   for (const item of items) {
     const [name, quantity] = item.split(' : ').map(s => s.trim());
     if (!name || !quantity) continue;
+    
     const isGear = gearOptions.some(gear => name.includes(gear));
-    if (isGear) gears.push({ name, quantity });
-    else seeds.push({ name, quantity });
+    if (isGear) {
+      gears.push({ name, quantity });
+    } else {
+      seeds.push({ name, quantity });
+    }
   }
 
+  // Add seeds field to the embed
   if (seeds.length > 0) {
     embed.addFields({
       name: '🌱 Seeds',
-      value: seeds.map(s => `{s.name}: {s.quantity}`).join('\n'),
+      value: seeds.map(s => `${s.name}: ${s.quantity}`).join('\n'),
       inline: true
     });
   }
 
+  // Add gears field to the embed
   if (gears.length > 0) {
     embed.addFields({
       name: '🛠️ Gears',
-      value: gears.map(g => `{g.name}: {g.quantity}`).join('\n'),
+      value: gears.map(g => `${g.name}: ${g.quantity}`).join('\n'),
       inline: true
     });
   }
 
+  // Send embed to all configured channels
   for (const userId in channelSelections) {
     const channelId = channelSelections[userId];
     const channel = client.channels.cache.get(channelId);
