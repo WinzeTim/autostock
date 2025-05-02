@@ -9,7 +9,7 @@ const app = express();
 const port = 3000;
 
 const token = process.env.TOKEN;
-const clientId = process.env.CLIENT_ID;
+const mongo = process.env.MONGODB;
 
 const channelSelections = {}; // User ID to channel ID map
 
