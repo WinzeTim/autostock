@@ -146,19 +146,38 @@ app.post('/send-stock', async (req, res) => {
   const embedData = stockData.embeds[0];
   if (!embedData.fields) return res.status(400).send('No stock fields found.');
 
+  // Create the embed
   const embed = new EmbedBuilder()
     .setTitle(embedData.title || '🛍️ Shop Stock Update')
     .setDescription(embedData.description || 'Here are the current shop items available:')
     .setColor(embedData.color || 0x58D68D);
 
+  // Track if we’ve added "Seeds" or "Gears" section titles already
+  let addedSeeds = false;
+  let addedGears = false;
+
   for (const field of embedData.fields) {
+    // Check for section titles and add them only once
+    if (field.name.toLowerCase().includes('seeds') && !addedSeeds) {
+      embed.addFields({ name: '🌱 Seeds', value: '\u200B', inline: false });  // Add empty value for section title spacing
+      addedSeeds = true;
+    }
+
+    if (field.name.toLowerCase().includes('gear') && !addedGears) {
+      embed.addFields({ name: '🛠️ Gears', value: '\u200B', inline: false });
+      addedGears = true;
+    }
+
+    // Handle field value formatting (strip dollar sign if not needed)
+    const fieldValue = field.value.replace('$', '');  // Remove $ sign if not necessary
     embed.addFields({
       name: field.name,
-      value: field.value,
+      value: fieldValue,
       inline: field.inline ?? false
     });
   }
 
+  // Send to all registered channels
   const settings = await ChannelSetting.find();
   for (const setting of settings) {
     const channel = await client.channels.fetch(setting.channelId).catch(() => null);
@@ -166,7 +185,7 @@ app.post('/send-stock', async (req, res) => {
       try {
         await channel.send({ embeds: [embed] });
       } catch (err) {
-        console.error(`❌ Failed to send to channel ${setting.channelId}:`, err);
+        console.error(`Failed to send to channel ${setting.channelId}:`, err);
       }
     }
   }
