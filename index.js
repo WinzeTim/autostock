@@ -6,13 +6,14 @@ const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
 const express = require('express');
 const app = express();
-const port = process.env.PORT || 3000; // ✅ Use PORT from environment for Render compatibility
+
+// ✅ Use PORT from environment for Render compatibility
+const port = process.env.PORT || 3000;
 
 const token = process.env.TOKEN;
-const clientId = process.env.CLIENT_ID; // ✅ Add this to your .env file
-const mongo = process.env.MONGODB;
+const clientId = process.env.CLIENT_ID;
 
-const channelSelections = {}; // User ID to channel ID map
+const channelSelections = {}; // userID -> channelID map
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
@@ -20,6 +21,7 @@ const client = new Client({
 
 const rest = new REST({ version: '10' }).setToken(token);
 
+// Slash command registration
 async function registerCommands() {
   const commands = [
     new SlashCommandBuilder()
@@ -34,18 +36,15 @@ async function registerCommands() {
 
   try {
     console.log('Registering slash commands...');
-    await rest.put(
-      Routes.applicationCommands(clientId),
-      { body: commands },
-    );
-    console.log('Slash commands registered.');
+    await rest.put(Routes.applicationCommands(clientId), { body: commands });
+    console.log('✅ Slash commands registered.');
   } catch (error) {
-    console.error('Failed to register commands:', error);
+    console.error('❌ Failed to register commands:', error);
   }
 }
 
 client.once('ready', () => {
-  console.log('🤖 Bot is ready!');
+  console.log('🤖 Discord bot is ready!');
   registerCommands();
 });
 
@@ -59,17 +58,22 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// Root URL for browser access
+// Express routes
+app.use(express.json());
+
 app.get('/', (req, res) => {
   res.send('✅ Stock bot is running. Use POST /send-stock to send data.');
 });
 
-// Handle POST request from Roblox
-app.use(express.json());
-
-app.post('/send-stock', (req, res) => {
+app.post('/send-stock', async (req, res) => {
   const stockData = req.body;
-  if (!stockData) return res.status(400).send('No stock data received');
+
+  if (!stockData) {
+    console.log('⚠️ No stock data received');
+    return res.status(400).send('No stock data received');
+  }
+
+  console.log('📦 Received stock data:', stockData);
 
   const embed = new EmbedBuilder()
     .setTitle('🛍️ Shop Stock Update')
@@ -93,17 +97,25 @@ app.post('/send-stock', (req, res) => {
   }
 
   for (const userId in channelSelections) {
-    const channel = client.channels.cache.get(channelSelections[userId]);
-    if (channel) {
-      channel.send({ embeds: [embed] }).catch(console.error);
+    const channelId = channelSelections[userId];
+    try {
+      const channel = await client.channels.fetch(channelId);
+      if (channel) {
+        await channel.send({ embeds: [embed] });
+        console.log(`✅ Sent stock embed to channel ${channel.id}`);
+      }
+    } catch (err) {
+      console.error(`❌ Error sending to channel ${channelId}:`, err);
     }
   }
 
   res.status(200).send('Stock sent to selected channels.');
 });
 
+// Start server
 app.listen(port, () => {
-  console.log(`🌐 Server is running on port ${port}`);
+  console.log(`🌐 Express server running on http://localhost:${port}`);
 });
 
+// Login the bot
 client.login(token);
