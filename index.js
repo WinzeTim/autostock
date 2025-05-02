@@ -34,7 +34,6 @@ async function registerCommands(clientId) {
     new SlashCommandBuilder()
       .setName('setchannel')
       .setDescription('Select a channel to receive stock notifications.')
-      .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator)
       .addChannelOption(option =>
         option.setName('channel')
           .setDescription('The channel to receive stock notifications.')
@@ -43,7 +42,6 @@ async function registerCommands(clientId) {
     new SlashCommandBuilder()
       .setName('setroles')
       .setDescription('Select roles to be pinged for stock updates.')
-      .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator)
       .addStringOption(option =>
         option.setName('roles')
           .setDescription('Select roles to ping (comma-separated).')
