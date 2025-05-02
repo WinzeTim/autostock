@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 const ChannelSetting = require('./ChannelSetting');
 
 const token = process.env.TOKEN;
-const mongoUri = process.env.MONGO;
+const mongoUri = process.env.MONGODB;
 const port = 10000;
 
 const client = new Client({
