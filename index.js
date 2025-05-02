@@ -91,13 +91,15 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (commandName === 'help') {
-    await interaction.reply({
-      content: '📘 Available Commands:\n
-/setchannel - Admin-only. Set the channel to receive stock updates.\n/setroles - Admin-only. Select roles to ping for seeds/gears.\n/help - Show this help message.',
-      ephemeral: true
-    });
-  }
-});
+  await interaction.reply({
+    content: `📘 Available Commands:
+    
+/setchannel - Admin-only. Set the channel to receive stock updates.
+/setroles - Admin-only. Select roles to ping for seeds/gears.
+/help - Show this help message.`,
+    ephemeral: true
+  });
+}
 
 // Express Web Server
 app.get('/', (req, res) => {
