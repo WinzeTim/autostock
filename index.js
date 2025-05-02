@@ -86,8 +86,8 @@ app.post('/send-stock', async (req, res) => {
       const isGear = quantity.includes('gear'); // Detect gears based on the keyword
       const emoji = isGear ? '🛠️' : '🌱'; // Use appropriate emoji for gear or seed
       embed.addFields({
-        name: `${emoji} ${name}`,
-        value: `Stock: ${quantity}`,
+        name: `{emoji} {name}`,
+        value: `Stock: {quantity}`,
         inline: true,
       });
     }
