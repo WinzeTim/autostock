@@ -6,14 +6,12 @@ const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
 const express = require('express');
 const app = express();
-
-// ✅ Use PORT from environment for Render compatibility
 const port = process.env.PORT || 3000;
 
 const token = process.env.TOKEN;
-const clientId = process.env.CLIENT_ID;
+const mongo = process.env.MONGODB;
 
-const channelSelections = {}; // userID -> channelID map
+const channelSelections = {}; // User ID to channel ID map
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
@@ -21,7 +19,6 @@ const client = new Client({
 
 const rest = new REST({ version: '10' }).setToken(token);
 
-// Slash command registration
 async function registerCommands() {
   const commands = [
     new SlashCommandBuilder()
@@ -36,15 +33,18 @@ async function registerCommands() {
 
   try {
     console.log('Registering slash commands...');
-    await rest.put(Routes.applicationCommands(clientId), { body: commands });
-    console.log('✅ Slash commands registered.');
+    await rest.put(
+      Routes.applicationCommands(process.env.CLIENT_ID), // Make sure you have your CLIENT_ID environment variable set.
+      { body: commands },
+    );
+    console.log('Slash commands registered.');
   } catch (error) {
-    console.error('❌ Failed to register commands:', error);
+    console.error('Error registering commands:', error);
   }
 }
 
 client.once('ready', () => {
-  console.log('🤖 Discord bot is ready!');
+  console.log('Bot is ready!');
   registerCommands();
 });
 
@@ -52,74 +52,69 @@ client.on('interactionCreate', async interaction => {
   if (!interaction.isCommand()) return;
 
   if (interaction.commandName === 'setchannel') {
-    await interaction.deferReply(); // Defer the reply to avoid the timeout error
-
     const selectedChannel = interaction.options.getChannel('channel');
     channelSelections[interaction.user.id] = selectedChannel.id;
-
-    // After doing your processing (like updating the channel), you can reply
-    await interaction.editReply(`✅ Stock notifications will now be sent to ${selectedChannel}.`);
+    await interaction.reply(`✅ Stock notifications will now be sent to ${selectedChannel}.`);
+    console.log(`Channel ${selectedChannel.name} selected by ${interaction.user.tag}.`);
   }
 });
 
-// Express routes
-app.use(express.json());
-
+// Root URL for browser access
 app.get('/', (req, res) => {
   res.send('✅ Stock bot is running. Use POST /send-stock to send data.');
 });
 
+// Handle POST request from Roblox
+app.use(express.json());
+
 app.post('/send-stock', async (req, res) => {
   const stockData = req.body;
+  if (!stockData) return res.status(400).send('No stock data received');
 
-  if (!stockData) {
-    console.log('⚠️ No stock data received');
-    return res.status(400).send('No stock data received');
-  }
-
-  console.log('📦 Received stock data:', stockData);
+  console.log('Received stock data:', stockData);
 
   const embed = new EmbedBuilder()
     .setTitle('🛍️ Shop Stock Update')
     .setDescription('Here are the current shop items available:')
     .setColor(0x58D68D);
 
+  // Add fields for seeds and gears if they exist
   if (stockData.seeds?.length > 0) {
-    embed.addFields(stockData.seeds.map(seed => ({
-      name: `🌱 ${seed.name}`,
-      value: `Stock: ${seed.stock}`,
-      inline: true,
-    })));
+    stockData.seeds.forEach(seed => {
+      embed.addFields({ name: `🌱 ${seed.name}`, value: `Stock: ${seed.stock}`, inline: true });
+    });
   }
 
   if (stockData.gears?.length > 0) {
-    embed.addFields(stockData.gears.map(gear => ({
-      name: `🛠️ ${gear.name}`,
-      value: `Stock: ${gear.stock}`,
-      inline: true,
-    })));
+    stockData.gears.forEach(gear => {
+      embed.addFields({ name: `🛠️ ${gear.name}`, value: `Stock: ${gear.stock}`, inline: true });
+    });
   }
 
+  console.log('Sending embed:', embed); // Log the embed before sending
+
+  // Loop through all channelSelections and send the message to each selected channel
   for (const userId in channelSelections) {
     const channelId = channelSelections[userId];
-    try {
-      const channel = await client.channels.fetch(channelId);
-      if (channel) {
+    const channel = client.channels.cache.get(channelId);
+
+    console.log(`Trying to send message to channel: ${channel ? channel.name : 'Not found'}`);
+
+    if (channel) {
+      try {
         await channel.send({ embeds: [embed] });
-        console.log(`✅ Sent stock embed to channel ${channel.id}`);
+        console.log(`Message sent to ${channel.name}`);
+      } catch (error) {
+        console.error(`Failed to send message to ${channelId}:`, error);
       }
-    } catch (err) {
-      console.error(`❌ Error sending to channel ${channelId}:`, err);
     }
   }
 
   res.status(200).send('Stock sent to selected channels.');
 });
 
-// Start server
 app.listen(port, () => {
-  console.log(`🌐 Express server running on http://localhost:${port}`);
+  console.log(`Server is running on http://localhost:${port}`);
 });
 
-// Login the bot
 client.login(token);
