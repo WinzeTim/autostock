@@ -203,12 +203,15 @@ app.post('/send-stock', async (req, res) => {
   const settings = await ChannelSetting.find();
   for (const setting of settings) {
     try {
-      const channel = await client.channels.fetch(setting.channelId);
-      if (!channel) continue;
+     const channel = await client.channels.fetch(setting.channelId);
+  if (!channel || !channel.guild) continue;
 
-      const roleMentions = channel.guild.roles.cache
-        .filter(role => (setting.roles || []).includes(role.name))
-        .map(role => `<@&${role.id}>`).join(' ');
+    const guild = await client.guilds.fetch(channel.guild.id);
+    const roles = await guild.roles.fetch(); // This fetches all roles
+
+    const roleMentions = roles
+      .filter(role => (setting.roles && Object.values(setting.roles).includes(role.name)))
+      .map(role => `<@&${role.id}>`).join(' ');
 
       await channel.send({ content: roleMentions || null, embeds: [embed] });
       console.log(`✅ Sent stock update to ${channel.name}`);
