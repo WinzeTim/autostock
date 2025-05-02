@@ -80,7 +80,7 @@ client.on('interactionCreate', async interaction => {
     await interaction.reply(`✅ Stock notifications will now be sent to ${selectedChannel}.`);
   }
 
-  if (commandName === 'setroles') {
+  else if (commandName === 'setroles') {
     if (!member.permissions.has(PermissionsBitField.Flags.Administrator)) {
       return interaction.reply({ content: '❌ You must be a server admin to use this command.', ephemeral: true });
     }
@@ -90,16 +90,17 @@ client.on('interactionCreate', async interaction => {
     await interaction.reply(`✅ Roles saved: ${roles.join(', ')}`);
   }
 
-  if (commandName === 'help') {
-  await interaction.reply({
-    content: `📘 Available Commands:
-    
+  else if (commandName === 'help') {
+    await interaction.reply({
+      content: `📘 Available Commands:
+
 /setchannel - Admin-only. Set the channel to receive stock updates.
 /setroles - Admin-only. Select roles to ping for seeds/gears.
 /help - Show this help message.`,
-    ephemeral: true
-  });
-}
+      ephemeral: true
+    });
+  }
+});
 
 // Express Web Server
 app.get('/', (req, res) => {
