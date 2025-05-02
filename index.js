@@ -181,67 +181,42 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// Handle incoming webhook POSTs
 app.post('/send-stock', async (req, res) => {
   const stockData = req.body;
-  if (!stockData || !stockData.content) return res.status(400).send('Invalid stock data.');
+  if (!stockData || !stockData.embeds || !Array.isArray(stockData.embeds)) {
+    return res.status(400).send('Invalid stock data format.');
+  }
+
+  const embedData = stockData.embeds[0];
+  if (!embedData.fields) return res.status(400).send('No stock fields found.');
 
   const embed = new EmbedBuilder()
-    .setTitle('🛍️ Shop Stock Update')
-    .setDescription('Here are the current shop items available:')
-    .setColor(0x58D68D);
+    .setTitle(embedData.title || '🛍️ Shop Stock Update')
+    .setDescription(embedData.description || 'Here are the current shop items available:')
+    .setColor(embedData.color || 0x58D68D);
 
-  const items = stockData.content.split('\n');
-  const seeds = [];
-  const gears = [];
-
-  for (const item of items) {
-    const [name, quantity] = item.split(' : ').map(s => s.trim());
-    if (!name || !quantity) continue;
-
-    // Remove the "$" sign and trim spaces
-    const cleanedName = name.replace('$', '').trim();
-    const cleanedQuantity = quantity.replace('$', '').trim();  // if you want to remove the '$' from the quantity as well
-
-    const isGear = gearOptions.some(gear => cleanedName.includes(gear));
-    if (isGear) {
-      gears.push({ name: cleanedName, quantity: cleanedQuantity });
-    } else {
-      seeds.push({ name: cleanedName, quantity: cleanedQuantity });
-    }
+  for (const field of embedData.fields) {
+    embed.addFields({
+      name: field.name,
+      value: field.value,
+      inline: field.inline ?? false
+    });
   }
 
-  // Add seeds field
-  if (seeds.length > 0) {
-    embed.addFields({ name: '🌱 Seeds', value: seeds.map(s => `${s.name}: ${s.quantity}`).join('\n'), inline: true });
-  }
-
-  // Add gear field with a proper gear emoji header
-  if (gears.length > 0) {
-    embed.addFields({ name: '🛠️ Gears', value: gears.map(g => `${g.name}: ${g.quantity}`).join('\n'), inline: true });
-  }
-
+  // Send to all registered channels
   const settings = await ChannelSetting.find();
   for (const setting of settings) {
-    try {
-     const channel = await client.channels.fetch(setting.channelId);
-  if (!channel || !channel.guild) continue;
-
-    const guild = await client.guilds.fetch(channel.guild.id);
-    const roles = await guild.roles.fetch(); // This fetches all roles
-
-    const roleMentions = roles
-      .filter(role => (setting.roles && Object.values(setting.roles).includes(role.name)))
-      .map(role => `<@&${role.id}>`).join(' ');
-
-      await channel.send({ content: roleMentions || null, embeds: [embed] });
-      console.log(`✅ Sent stock update to ${channel.name}`);
-    } catch (err) {
-      console.error(`❌ Error sending to guild ${setting.guildId}:`, err.message);
+    const channel = await client.channels.fetch(setting.channelId).catch(() => null);
+    if (channel && channel.isTextBased()) {
+      try {
+        await channel.send({ embeds: [embed] });
+      } catch (err) {
+        console.error(`Failed to send to channel ${setting.channelId}:`, err);
+      }
     }
   }
 
-  res.status(200).send('Stock sent.');
+  res.sendStatus(200);
 });
 
 // Status rotation
