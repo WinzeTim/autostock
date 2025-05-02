@@ -130,7 +130,7 @@ app.post('/send-stock', async (req, res) => {
   if (seeds.length > 0) {
     embed.addFields({
       name: '🌱 Seeds',
-      value: seeds.map(s => `${s.name}: ${s.quantity}`).join('\n'),
+      value: seeds.map(s => `{s.name}: {s.quantity}`).join('\n'),
       inline: true
     });
   }
@@ -138,7 +138,7 @@ app.post('/send-stock', async (req, res) => {
   if (gears.length > 0) {
     embed.addFields({
       name: '🛠️ Gears',
-      value: gears.map(g => `${g.name}: ${g.quantity}`).join('\n'),
+      value: gears.map(g => `{g.name}: {g.quantity}`).join('\n'),
       inline: true
     });
   }
