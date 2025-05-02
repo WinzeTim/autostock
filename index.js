@@ -186,6 +186,26 @@ app.post('/send-stock', async (req, res) => {
   res.status(200).send('Stock sent to selected channels.');
 });
 
+function updateBotStatus() {
+  const activities = [
+    () => ({ type: 3, name: `/help` }), // Listening
+    () => ({ type: 3, name: `${client.guilds.cache.size} servers...` }), // Watching
+  ];
+
+  let i = 0;
+  setInterval(() => {
+    const activity = activities[i % activities.length]();
+    client.user.setActivity(activity.name, { type: activity.type });
+    i++;
+  }, 10000); // every 10 seconds
+}
+
+client.once('ready', () => {
+  console.log('🤖 Bot is ready!');
+  registerCommands(client.user.id);
+  updateBotStatus(); // Start rotating status
+});
+
 app.listen(port, () => {
   console.log(`🚀 Server is running on http://localhost:${port}`);
 });
