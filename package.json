@@ -1,0 +1,21 @@
+{
+  "name": "discord-embed-bot",
+  "version": "1.0.0",
+  "description": "Bot to receive embed messages and send them to Discord",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@discordjs/builders": "^0.13.0",
+    "@discordjs/rest": "^0.3.0",
+    "body-parser": "^1.20.2",
+    "discord-api-types": "^0.38.0",
+    "discord.js": "^14.11.0",
+    "dotenv": "^16.5.0",
+    "express": "^4.18.2"
+  }
+}
