@@ -52,9 +52,13 @@ client.on('interactionCreate', async interaction => {
   if (!interaction.isCommand()) return;
 
   if (interaction.commandName === 'setchannel') {
+    await interaction.deferReply(); // Defer the reply to avoid the timeout error
+
     const selectedChannel = interaction.options.getChannel('channel');
     channelSelections[interaction.user.id] = selectedChannel.id;
-    await interaction.reply(`✅ Stock notifications will now be sent to ${selectedChannel}.`);
+
+    // After doing your processing (like updating the channel), you can reply
+    await interaction.editReply(`✅ Stock notifications will now be sent to ${selectedChannel}.`);
   }
 });
 
