@@ -177,7 +177,7 @@ app.post('/send-stock', async (req, res) => {
   for (const item of items) {
     const [name, quantity] = item.split(' : ').map(s => s.trim());
     if (!name || !quantity) continue;
-    
+
     // Remove the "$" sign and trim spaces
     const cleanedName = name.replace('$', '').trim();
     const cleanedQuantity = quantity.replace('$', '').trim();  // if you want to remove the '$' from the quantity as well
@@ -190,10 +190,12 @@ app.post('/send-stock', async (req, res) => {
     }
   }
 
+  // Add seeds field
   if (seeds.length > 0) {
     embed.addFields({ name: '🌱 Seeds', value: seeds.map(s => `${s.name}: ${s.quantity}`).join('\n'), inline: true });
   }
 
+  // Add gear field with a proper gear emoji header
   if (gears.length > 0) {
     embed.addFields({ name: '🛠️ Gears', value: gears.map(g => `${g.name}: ${g.quantity}`).join('\n'), inline: true });
   }
@@ -238,7 +240,7 @@ app.get('/', (req, res) => {
   res.send('✅ Stock bot is running.');
 });
 
-mongoose.connect(mongoUri, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect(mongoUri)
   .then(() => {
     console.log('🟢 Connected to MongoDB.');
     app.listen(port, () => console.log(`🚀 Express running at http://localhost:${port}`));
