@@ -157,32 +157,37 @@ app.post('/send-stock', async (req, res) => {
   let addedGears = false;
 
   // Iterate through the fields to handle section titles and items
- for (const field of embedData.fields) {
-  const fieldNameLower = field.name.toLowerCase().trim();
+ let addedSeeds = false;
+let addedGears = false;
 
-  // Skip built-in section titles from the source
-  if (['seeds', '🌱 seeds', 'gears', '🛠️ gears'].includes(fieldNameLower)) {
-    continue; // Skip duplicated section header
+for (const field of embedData.fields) {
+  const name = field.name.trim();
+  const value = field.value.trim().toLowerCase();
+
+  // Skip duplicated section headers
+  if (['seeds', '🌱 seeds', 'gears', '🛠️ gears'].includes(name.toLowerCase())) {
+    continue;
   }
 
-  // Add "Seeds" section title once
-  if (!addedSeeds && fieldNameLower.includes('seed')) {
+  // Add Seeds header once if value mentions seeds
+  if (!addedSeeds && value.includes('seed')) {
     embed.addFields({ name: '🌱 Seeds', value: '\u200B', inline: false });
     addedSeeds = true;
   }
 
-  // Add "Gears" section title once
-  if (!addedGears && fieldNameLower.includes('gear')) {
+  // Add Gears header once if value mentions gears
+  if (!addedGears && value.includes('gear')) {
     embed.addFields({ name: '🛠️ Gears', value: '\u200B', inline: false });
     addedGears = true;
   }
 
-  // Clean up value (remove $ sign)
-  const fieldValue = field.value.replace(/\$/g, '');
+  // Clean up value and name (remove $ if present)
+  const cleanedName = name.replace(/^\$/, '');
+  const cleanedValue = field.value.replace(/\$/g, '');
 
   embed.addFields({
-    name: field.name.replace(/^\$/, ''), // Also remove $ from item name if needed
-    value: fieldValue,
+    name: cleanedName,
+    value: cleanedValue,
     inline: field.inline ?? false
   });
 }
