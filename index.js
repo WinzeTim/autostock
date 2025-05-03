@@ -38,12 +38,21 @@ async function registerCommands(clientId) {
     new SlashCommandBuilder()
       .setName('setroles')
       .setDescription('Set roles to be pinged for stock updates by item.')
-      .addStringOption(option => option.setName('apple').setDescription('Role to ping for Apple Seeds.'))
-      .addStringOption(option => option.setName('bamboo').setDescription('Role to ping for Bamboo Seeds.'))
+      .addStringOption(option => option.setName('daffodil').setDescription('Role to ping for Daffodil Seeds.'))
       .addStringOption(option => option.setName('watermelon').setDescription('Role to ping for Watermelon Seeds.'))
       .addStringOption(option => option.setName('pumpkin').setDescription('Role to ping for Pumpkin Seeds.'))
+      .addStringOption(option => option.setName('apple').setDescription('Role to ping for Apple Seeds.'))
+      .addStringOption(option => option.setName('bamboo').setDescription('Role to ping for Bamboo Seeds.'))
+      .addStringOption(option => option.setName('coconut').setDescription('Role to ping for Coconut Seeds.'))
       .addStringOption(option => option.setName('cactus').setDescription('Role to ping for Cactus Seeds.'))
-      .addStringOption(option => option.setName('gear').setDescription('Role to ping for Gear items.')),
+      .addStringOption(option => option.setName('dragonfruit').setDescription('Role to ping for Dragon Fruit Seeds.'))
+      .addStringOption(option => option.setName('mango').setDescription('Role to ping for Mango Seeds.'))
+      .addStringOption(option => option.setName('grape').setDescription('Role to ping for Grape Seeds.'))
+      .addStringOption(option => option.setName('mushroom').setDescription('Role to ping for Mushroom Seeds.'))
+      .addStringOption(option => option.setName('godlysprinkler').setDescription('Role to ping for Godly Sprinkler.'))
+      .addStringOption(option => option.setName('advancedsprinkler').setDescription('Role to ping for Advanced Sprinkler.'))
+      .addStringOption(option => option.setName('mastersprinkler').setDescription('Role to ping for Master Sprinkler.'))
+      .addStringOption(option => option.setName('lightningrod').setDescription('Role to ping for Lightning Rod.')),
     new SlashCommandBuilder()
       .setName('help')
       .setDescription('Lists all available commands.')
@@ -120,10 +129,16 @@ client.on('interactionCreate', async interaction => {
       return interaction.reply({ content: '❌ You must be an admin to use this.', ephemeral: true });
     }
 
+    const roleKeys = [
+      'daffodil', 'watermelon', 'pumpkin', 'apple', 'bamboo', 'coconut',
+      'cactus', 'dragonfruit', 'mango', 'grape', 'mushroom',
+      'godlysprinkler', 'advancedsprinkler', 'mastersprinkler', 'lightningrod'
+    ];
+
     const roles = {};
-    ['apple', 'bamboo', 'watermelon', 'pumpkin', 'cactus', 'gear'].forEach(item => {
-      const role = interaction.options.getString(item);
-      if (role) roles[item] = role;
+    roleKeys.forEach(key => {
+      const role = interaction.options.getString(key);
+      if (role) roles[key] = role;
     });
 
     await ChannelSetting.findOneAndUpdate(
@@ -144,13 +159,14 @@ client.on('interactionCreate', async interaction => {
 
 app.post('/send-stock', async (req, res) => {
   const data = req.body;
-  const type = data.type || 'stock'; // 'weather' or 'stock'
+  const type = data.type || 'stock';
 
   if (!data.embeds || !Array.isArray(data.embeds) || data.embeds.length === 0) {
     return res.status(400).send('No valid embed found in the webhook data.');
   }
 
   const embed = data.embeds[0];
+  const embedText = JSON.stringify(embed).toLowerCase();
 
   const settings = await ChannelSetting.find();
   for (const setting of settings) {
@@ -162,7 +178,16 @@ app.post('/send-stock', async (req, res) => {
     const channel = await client.channels.fetch(channelIdToUse).catch(() => null);
     if (channel && channel.isTextBased()) {
       try {
-        await channel.send({ embeds: [embed] });
+        let content = '';
+        if (setting.roles) {
+          for (const [item, roleId] of Object.entries(setting.roles)) {
+            if (embedText.includes(item.toLowerCase())) {
+              content += `<@&${roleId}> `;
+            }
+          }
+        }
+
+        await channel.send({ content: content.trim() || null, embeds: [embed] });
       } catch (err) {
         console.error(`Failed to send to channel ${channelIdToUse}:`, err);
       }
