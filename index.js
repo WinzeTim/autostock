@@ -126,43 +126,52 @@ client.on('interactionCreate', async interaction => {
 
 app.post('/send-stock', async (req, res) => {
   const stockData = req.body;
-  if (!stockData || !stockData.embeds || !Array.isArray(stockData.embeds)) {
-    return res.status(400).send('Invalid stock data format.');
-  }
 
-  const embedData = stockData.embeds[0];
-  if (!embedData.fields) return res.status(400).send('No stock fields found.');
-
-  const embed = new EmbedBuilder()
+  let embed = new EmbedBuilder()
     .setTitle('🛍️ Shop Stock Update')
-    .setDescription('Here are the current shop items available:')
-    .setColor(0x00C176);
+    .setColor(0x58D68D)
+    .setTimestamp();
 
-  const seeds = [];
-  const gears = [];
+  const rawContent = stockData.content;
 
-  for (const field of embedData.fields) {
-    const name = field.name?.trim().replace(/\^\$/, '');
-    const value = field.value?.trim().replace(/\$/g, '').toLowerCase();
+  if (rawContent && typeof rawContent === 'string') {
+    embed.setDescription(rawContent);
+  } else if (stockData.embeds && Array.isArray(stockData.embeds) && stockData.embeds[0]?.fields) {
+    const fields = stockData.embeds[0].fields;
 
-    if (!name || !value) continue;
+    embed.setDescription('🛍️ **Shop Stock Update**\nHere are the current shop items available:');
 
-    const isHeader = ['seeds', '🌱 seeds', 'gears', '🛠️ gears'].some(h => name.toLowerCase().includes(h));
-    if (isHeader) continue;
+    const seeds = [];
+    const gears = [];
 
-    if (value.includes('seed')) {
-      seeds.push(`**${name}**: ${value}`);
-    } else if (value.includes('gear')) {
-      gears.push(`**${name}**: ${value}`);
+    for (const field of fields) {
+      const name = field.name.trim();
+      const value = field.value.trim();
+
+      if (!name || !value) continue;
+
+      if (value.toLowerCase().includes('seed')) {
+        seeds.push({ name, value });
+      } else if (value.toLowerCase().includes('gear')) {
+        gears.push({ name, value });
+      }
     }
-  }
 
-  if (seeds.length > 0) {
-    embed.addFields({ name: '🌱 Seeds', value: seeds.join('\n'), inline: false });
-  }
+    if (seeds.length > 0) {
+      embed.addFields({ name: '🌱 Seeds', value: '\u200B', inline: false });
+      for (const item of seeds) {
+        embed.addFields({ name: item.name, value: item.value, inline: true });
+      }
+    }
 
-  if (gears.length > 0) {
-    embed.addFields({ name: '🛠️ Gears', value: gears.join('\n'), inline: false });
+    if (gears.length > 0) {
+      embed.addFields({ name: '🛠️ Gears', value: '\u200B', inline: false });
+      for (const item of gears) {
+        embed.addFields({ name: item.name, value: item.value, inline: true });
+      }
+    }
+  } else {
+    return res.status(400).send('No valid embed or content found.');
   }
 
   const settings = await ChannelSetting.find();
