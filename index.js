@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express = require('express');
-const { Client, GatewayIntentBits, EmbedBuilder, PermissionsBitField, Partials } = require('discord.js');
+const { Client, GatewayIntentBits, PermissionsBitField, Partials } = require('discord.js');
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { REST } = require('discord.js');
 const { Routes } = require('discord-api-types/v10');
@@ -136,7 +136,7 @@ client.on('interactionCreate', async interaction => {
       'daffodil', 'watermelon', 'pumpkin', 'apple', 'bamboo', 'coconut',
       'cactus', 'dragonfruit', 'mango', 'grape', 'mushroom',
       'godlysprinkler', 'advancedsprinkler', 'mastersprinkler', 'lightningrod',
-      'rain', 'thunderstorm', 'frost' // new weather-related keys
+      'rain', 'thunderstorm', 'frost'
     ];
 
     const roles = {};
@@ -182,27 +182,25 @@ app.post('/send-stock', async (req, res) => {
     const channel = await client.channels.fetch(channelIdToUse).catch(() => null);
     
     if (channel && channel.isTextBased()) {
-  try {
-    const pingRoles = [];
+      try {
+        const pingRoles = [];
 
-    if (setting.roles && typeof setting.roles === 'object') {
-      for (const [key, roleId] of Object.entries(setting.roles)) {
-        if (roleId && embed?.description?.toLowerCase().includes(key.toLowerCase())) {
-          pingRoles.push(`<@&${roleId}>`);
+        if (setting.roles && typeof setting.roles === 'object') {
+          for (const [key, roleId] of Object.entries(setting.roles)) {
+            if (roleId && embed?.description?.toLowerCase().includes(key.toLowerCase())) {
+              pingRoles.push(`<@&${roleId}>`);
+            }
+          }
         }
+
+        await channel.send({
+          content: pingRoles.join(' ') || null,
+          embeds: [embed],
+        });
+
+      } catch (err) {
+        console.error(`Failed to send to channel ${channelIdToUse}:`, err);
       }
-    }
-
-    await channel.send({
-      content: pingRoles.join(' ') || null,
-      embeds: [embed],
-    });
-
-  } catch (err) {
-    console.error(`Failed to send to channel ${channelIdToUse}:`, err);
-  }
-    }
-    
     }
   }
 
