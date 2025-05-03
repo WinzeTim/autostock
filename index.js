@@ -198,11 +198,18 @@ app.post('/send-stock', async (req, res) => {
 });
 
 function updateBotStatus() {
+  let i = 0;
+
+  const getTotalUsers = () => {
+    return client.guilds.cache.reduce((acc, guild) => acc + (guild.memberCount || 0), 0);
+  };
+
   const activities = [
     () => ({ type: 3, name: `/help` }),
-    () => ({ type: 3, name: `${client.guilds.cache.size} servers...` })
+    () => ({ type: 3, name: `${client.guilds.cache.size} servers` }),
+    () => ({ type: 3, name: `Watching ${getTotalUsers()} users` }),
   ];
-  let i = 0;
+
   setInterval(() => {
     const activity = activities[i % activities.length]();
     client.user.setActivity(activity.name, { type: activity.type });
@@ -210,8 +217,8 @@ function updateBotStatus() {
   }, 10000);
 }
 
-app.get('/', (req, res) => {
-  res.send('✅ Stock bot is running.');
+client.guilds.cache.forEach(guild => {
+  guild.members.fetch().catch(() => {});
 });
 
 mongoose.connect(mongoUri)
