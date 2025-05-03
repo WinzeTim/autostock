@@ -156,41 +156,50 @@ app.post('/send-stock', async (req, res) => {
   let addedSeeds = false;
   let addedGears = false;
 
-  // Iterate through the fields to handle section titles and items
- let addedSeeds = false;
-let addedGears = false;
+// Organize fields into categories
+const seeds = [];
+const gears = [];
 
 for (const field of embedData.fields) {
-  const name = field.name.trim();
-  const value = field.value.trim().toLowerCase();
+  const name = field.name.trim().replace(/^\$/, '');
+  const value = field.value.trim().replace(/\$/g, '').toLowerCase();
 
-  // Skip duplicated section headers
-  if (['seeds', '🌱 seeds', 'gears', '🛠️ gears'].includes(name.toLowerCase())) {
-    continue;
+  // Skip section titles
+  const isSectionHeader = ['seeds', '🌱 seeds', 'gears', '🛠️ gears'].includes(name.toLowerCase());
+  if (isSectionHeader) continue;
+
+  // Categorize based on value
+  if (value.includes('seed')) {
+    seeds.push({ name, value });
+  } else if (value.includes('gear')) {
+    gears.push({ name, value });
   }
-
-  // Add Seeds header once if value mentions seeds
-  if (!addedSeeds && value.includes('seed')) {
-    embed.addFields({ name: '🌱 Seeds', value: '\u200B', inline: false });
-    addedSeeds = true;
-  }
-
-  // Add Gears header once if value mentions gears
-  if (!addedGears && value.includes('gear')) {
-    embed.addFields({ name: '🛠️ Gears', value: '\u200B', inline: false });
-    addedGears = true;
-  }
-
-  // Clean up value and name (remove $ if present)
-  const cleanedName = name.replace(/^\$/, '');
-  const cleanedValue = field.value.replace(/\$/g, '');
-
-  embed.addFields({
-    name: cleanedName,
-    value: cleanedValue,
-    inline: field.inline ?? false
-  });
 }
+
+// Add header and items for seeds
+if (seeds.length > 0) {
+  embed.addFields({ name: '🌱 Seeds', value: '\u200B', inline: false });
+  for (const item of seeds) {
+    embed.addFields({
+      name: item.name,
+      value: item.value,
+      inline: true
+    });
+  }
+}
+
+// Add header and items for gears
+if (gears.length > 0) {
+  embed.addFields({ name: '🛠️ Gears', value: '\u200B', inline: false });
+  for (const item of gears) {
+    embed.addFields({
+      name: item.name,
+      value: item.value,
+      inline: true
+    });
+  }
+}
+
 
   // Send to all registered channels
   const settings = await ChannelSetting.find();
