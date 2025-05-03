@@ -157,29 +157,35 @@ app.post('/send-stock', async (req, res) => {
   let addedGears = false;
 
   // Iterate through the fields to handle section titles and items
-  for (const field of embedData.fields) {
-    const fieldNameLower = field.name.toLowerCase();
+ for (const field of embedData.fields) {
+  const fieldNameLower = field.name.toLowerCase().trim();
 
-    // Only add "Seeds" section once
-    if (fieldNameLower.includes('seeds') && !addedSeeds) {
-      embed.addFields({ name: '🌱 Seeds', value: '\u200B', inline: false });  // Add empty value for spacing
-      addedSeeds = true;
-    }
-
-    // Only add "Gears" section once
-    if (fieldNameLower.includes('gear') && !addedGears) {
-      embed.addFields({ name: '🛠️ Gears', value: '\u200B', inline: false });
-      addedGears = true;
-    }
-
-    // Strip the $ sign from values and avoid duplication
-    const fieldValue = field.value.replace(/\$/g, '');  // Remove all $ signs
-    embed.addFields({
-      name: field.name,
-      value: fieldValue,
-      inline: field.inline ?? false
-    });
+  // Skip built-in section titles from the source
+  if (['seeds', '🌱 seeds', 'gears', '🛠️ gears'].includes(fieldNameLower)) {
+    continue; // Skip duplicated section header
   }
+
+  // Add "Seeds" section title once
+  if (!addedSeeds && fieldNameLower.includes('seed')) {
+    embed.addFields({ name: '🌱 Seeds', value: '\u200B', inline: false });
+    addedSeeds = true;
+  }
+
+  // Add "Gears" section title once
+  if (!addedGears && fieldNameLower.includes('gear')) {
+    embed.addFields({ name: '🛠️ Gears', value: '\u200B', inline: false });
+    addedGears = true;
+  }
+
+  // Clean up value (remove $ sign)
+  const fieldValue = field.value.replace(/\$/g, '');
+
+  embed.addFields({
+    name: field.name.replace(/^\$/, ''), // Also remove $ from item name if needed
+    value: fieldValue,
+    inline: field.inline ?? false
+  });
+}
 
   // Send to all registered channels
   const settings = await ChannelSetting.find();
