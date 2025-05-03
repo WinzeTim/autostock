@@ -219,7 +219,7 @@ function updateBotStatus() {
   const activities = [
     () => ({ type: 3, name: `/help` }),
     () => ({ type: 3, name: `${client.guilds.cache.size} servers` }),
-    () => ({ type: 3, name: `Watching ${getTotalUsers()} users` }),
+    () => ({ type: 3, name: `${getTotalUsers()} users` }),
   ];
 
   setInterval(() => {
