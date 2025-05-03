@@ -162,6 +162,24 @@ client.on('interactionCreate', async interaction => {
 });
 
 // Webhook route to handle all incoming webhook posts
+const removeStockSuffix = (text) => text.replace(/:.*$/, '').toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+
+const extractLinesFromEmbed = (embed) => {
+  let rawLines = [];
+
+  if (embed.description) {
+    rawLines = rawLines.concat(embed.description.split('\n'));
+  }
+
+  if (Array.isArray(embed.fields)) {
+    for (const field of embed.fields) {
+      if (field.value) rawLines = rawLines.concat(field.value.split('\n'));
+    }
+  }
+
+  return rawLines.map(line => removeStockSuffix(line));
+};
+
 app.post('/send-stock', async (req, res) => {
   const data = req.body;
   const type = data.type || 'stock';
@@ -171,13 +189,7 @@ app.post('/send-stock', async (req, res) => {
   }
 
   const embed = data.embeds[0];
-  const rawText = embed?.description || '';
-
-  // Normalize and clean lines
-  const lines = rawText.split('\n').map(line => {
-    // Remove ": [number] seed/gear/units" from the end of each line
-    return line.replace(/:.*$/, '').toLowerCase().replace(/\s+/g, '');
-  });
+  const normalizedLines = extractLinesFromEmbed(embed);
 
   const settings = await ChannelSetting.find();
 
@@ -197,10 +209,10 @@ app.post('/send-stock', async (req, res) => {
 
       if (setting.roles && typeof setting.roles === 'object') {
         for (const [key, roleId] of Object.entries(setting.roles)) {
-          const formattedKey = key.toLowerCase().replace(/\s+/g, '');
-          if (lines.some(line => line.includes(formattedKey))) {
+          const formattedKey = removeStockSuffix(key);
+          if (normalizedLines.some(line => line.includes(formattedKey))) {
             pingRoles.push(`<@&${roleId}>`);
-            console.log(`✅ Matched keyword "${key}", pinging role <@&${roleId}>`);
+            console.log(`✅ Matched keyword "${key}" → ping <@&${roleId}>`);
           }
         }
       }
