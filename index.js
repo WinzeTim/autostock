@@ -52,7 +52,10 @@ async function registerCommands(clientId) {
       .addStringOption(option => option.setName('godlysprinkler').setDescription('Role to ping for Godly Sprinkler.'))
       .addStringOption(option => option.setName('advancedsprinkler').setDescription('Role to ping for Advanced Sprinkler.'))
       .addStringOption(option => option.setName('mastersprinkler').setDescription('Role to ping for Master Sprinkler.'))
-      .addStringOption(option => option.setName('lightningrod').setDescription('Role to ping for Lightning Rod.')),
+      .addStringOption(option => option.setName('lightningrod').setDescription('Role to ping for Lightning Rod.'))
+      .addStringOption(option => option.setName('rain').setDescription('Role to ping for Rain.'))
+      .addStringOption(option => option.setName('thunderstorm').setDescription('Role to ping for Thunderstorm.'))
+      .addStringOption(option => option.setName('frost').setDescription('Role to ping for Frost.')),
     new SlashCommandBuilder()
       .setName('help')
       .setDescription('Lists all available commands.')
@@ -132,7 +135,8 @@ client.on('interactionCreate', async interaction => {
     const roleKeys = [
       'daffodil', 'watermelon', 'pumpkin', 'apple', 'bamboo', 'coconut',
       'cactus', 'dragonfruit', 'mango', 'grape', 'mushroom',
-      'godlysprinkler', 'advancedsprinkler', 'mastersprinkler', 'lightningrod'
+      'godlysprinkler', 'advancedsprinkler', 'mastersprinkler', 'lightningrod',
+      'rain', 'thunderstorm', 'frost' // new weather-related keys
     ];
 
     const roles = {};
@@ -176,21 +180,29 @@ app.post('/send-stock', async (req, res) => {
     }
 
     const channel = await client.channels.fetch(channelIdToUse).catch(() => null);
+    
     if (channel && channel.isTextBased()) {
-      try {
-        let content = '';
-        if (setting.roles) {
-          for (const [item, roleId] of Object.entries(setting.roles)) {
-            if (embedText.includes(item.toLowerCase())) {
-              content += `<@&${roleId}> `;
-            }
-          }
-        }
+  try {
+    const pingRoles = [];
 
-        await channel.send({ content: content.trim() || null, embeds: [embed] });
-      } catch (err) {
-        console.error(`Failed to send to channel ${channelIdToUse}:`, err);
+    if (setting.roles && typeof setting.roles === 'object') {
+      for (const [key, roleId] of Object.entries(setting.roles)) {
+        if (roleId && embed?.description?.toLowerCase().includes(key.toLowerCase())) {
+          pingRoles.push(`<@&${roleId}>`);
+        }
       }
+    }
+
+    await channel.send({
+      content: pingRoles.join(' ') || null,
+      embeds: [embed],
+    });
+
+  } catch (err) {
+    console.error(`Failed to send to channel ${channelIdToUse}:`, err);
+  }
+    }
+    
     }
   }
 
