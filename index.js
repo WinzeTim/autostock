@@ -170,7 +170,7 @@ app.post('/send-stock', async (req, res) => {
   }
 
   const embed = data.embeds[0];
-  const embedText = JSON.stringify(embed).toLowerCase();
+  const embedText = embed?.description?.toLowerCase() || '';
 
   const settings = await ChannelSetting.find();
   for (const setting of settings) {
@@ -187,8 +187,9 @@ app.post('/send-stock', async (req, res) => {
 
         if (setting.roles && typeof setting.roles === 'object') {
           for (const [key, roleId] of Object.entries(setting.roles)) {
-            if (roleId && embed?.description?.toLowerCase().includes(key.toLowerCase())) {
+            if (roleId && embedText.includes(key.toLowerCase())) {
               pingRoles.push(`<@&${roleId}>`);
+              console.log(`Pinging role for ${key}: <@&${roleId}>`);
             }
           }
         }
