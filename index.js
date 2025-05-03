@@ -119,64 +119,20 @@ client.on('interactionCreate', async interaction => {
 app.post('/send-stock', async (req, res) => {
   const stockData = req.body;
 
-  let embed = new EmbedBuilder()
-    .setTitle('🛍️ Shop Stock Update')
-    .setColor(0x58D68D)
-    .setTimestamp();
-
-  const rawContent = stockData.content;
-
-  if (rawContent && typeof rawContent === 'string') {
-    // Remove '$' symbols and set description
-    const cleanedContent = rawContent.replace(/\$/g, ''); 
-    embed.setDescription(cleanedContent);
-  } else if (stockData.embeds && Array.isArray(stockData.embeds) && stockData.embeds[0]?.fields) {
-    const fields = stockData.embeds[0].fields;
-
-    embed.setDescription('🛍️ **Shop Stock Update**\nHere are the current shop items available:');
-
-    const seeds = [];
-    const gears = [];
-
-    for (const field of fields) {
-      const name = field.name.trim();
-      const value = field.value.trim();
-
-      if (!name || !value) continue;
-
-      if (value.toLowerCase().includes('seed')) {
-        seeds.push({ name, value });
-      } else if (value.toLowerCase().includes('gear')) {
-        gears.push({ name, value });
-      }
-    }
-
-    if (seeds.length > 0) {
-      embed.addFields({ name: '🌱 Seeds', value: '\u200B', inline: false });
-      for (const item of seeds) {
-        const cleanedName = item.name.replace(/\$/g, '');
-        const cleanedValue = item.value.replace(/\$/g, '');
-        embed.addFields({ name: cleanedName, value: cleanedValue, inline: true });
-      }
-    }
-
-    if (gears.length > 0) {
-      embed.addFields({ name: '🛠️ Gears', value: '\u200B', inline: false });
-      for (const item of gears) {
-        const cleanedName = item.name.replace(/\$/g, '');
-        const cleanedValue = item.value.replace(/\$/g, '');
-        embed.addFields({ name: cleanedName, value: cleanedValue, inline: true });
-      }
-    }
-  } else {
-    return res.status(400).send('No valid embed or content found.');
+  // Ensure there is valid embed data to send
+  if (!stockData.embeds || !Array.isArray(stockData.embeds) || stockData.embeds.length === 0) {
+    return res.status(400).send('No valid embed found in the webhook data.');
   }
 
+  const embed = stockData.embeds[0]; // Assuming the first embed is the relevant one
+
+  // Forward the embed directly to the configured channels
   const settings = await ChannelSetting.find();
   for (const setting of settings) {
     const channel = await client.channels.fetch(setting.channelId).catch(() => null);
     if (channel && channel.isTextBased()) {
       try {
+        // Directly forward the embed from Roblox to the channel
         await channel.send({ embeds: [embed] });
       } catch (err) {
         console.error(`Failed to send to channel ${setting.channelId}:`, err);
@@ -184,7 +140,7 @@ app.post('/send-stock', async (req, res) => {
     }
   }
 
-  res.sendStatus(200);
+  res.sendStatus(200); // Return successful response
 });
 
 function updateBotStatus() {
