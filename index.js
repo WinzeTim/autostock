@@ -21,15 +21,6 @@ app.use(express.json());
 
 const rest = new REST({ version: '10' }).setToken(token);
 
-const seedOptions = [
-  'Daffodil Seeds', 'Watermelon Seeds', 'Pumpkin Seeds', 'Apple Seeds', 'Bamboo Seeds',
-  'Coconut Seeds', 'Cactus Seeds', 'Dragon Fruit Seeds', 'Mango Seeds', 'Grape Seeds', 'Mushroom Seeds'
-];
-
-const gearOptions = [
-  'Godly Sprinkler', 'Advanced Sprinkler', 'Master Sprinkler', 'Lightning Rod'
-];
-
 async function registerCommands(clientId) {
   const commands = [
     new SlashCommandBuilder()
@@ -47,6 +38,7 @@ async function registerCommands(clientId) {
       .addStringOption(option => option.setName('pumpkin').setDescription('Role to ping for Pumpkin Seeds.'))
       .addStringOption(option => option.setName('cactus').setDescription('Role to ping for Cactus Seeds.'))
       .addStringOption(option => option.setName('gear').setDescription('Role to ping for Gear items.')),
+
     new SlashCommandBuilder()
       .setName('help')
       .setDescription('Lists all available commands.')
@@ -135,7 +127,9 @@ app.post('/send-stock', async (req, res) => {
   const rawContent = stockData.content;
 
   if (rawContent && typeof rawContent === 'string') {
-    embed.setDescription(rawContent);
+    // Remove '$' symbols and set description
+    const cleanedContent = rawContent.replace(/\$/g, ''); 
+    embed.setDescription(cleanedContent);
   } else if (stockData.embeds && Array.isArray(stockData.embeds) && stockData.embeds[0]?.fields) {
     const fields = stockData.embeds[0].fields;
 
@@ -160,14 +154,18 @@ app.post('/send-stock', async (req, res) => {
     if (seeds.length > 0) {
       embed.addFields({ name: '🌱 Seeds', value: '\u200B', inline: false });
       for (const item of seeds) {
-        embed.addFields({ name: item.name, value: item.value, inline: true });
+        const cleanedName = item.name.replace(/\$/g, '');
+        const cleanedValue = item.value.replace(/\$/g, '');
+        embed.addFields({ name: cleanedName, value: cleanedValue, inline: true });
       }
     }
 
     if (gears.length > 0) {
       embed.addFields({ name: '🛠️ Gears', value: '\u200B', inline: false });
       for (const item of gears) {
-        embed.addFields({ name: item.name, value: item.value, inline: true });
+        const cleanedName = item.name.replace(/\$/g, '');
+        const cleanedValue = item.value.replace(/\$/g, '');
+        embed.addFields({ name: cleanedName, value: cleanedValue, inline: true });
       }
     }
   } else {
