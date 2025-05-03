@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const { Client, GatewayIntentBits, EmbedBuilder, PermissionsBitField, Partials } = require('discord.js');
 const { SlashCommandBuilder } = require('@discordjs/builders');
-const { REST } = require('@discordjs/rest');
+const { REST } = require('discord.js');
 const { Routes } = require('discord-api-types/v10');
 const mongoose = require('mongoose');
 const ChannelSetting = require('./ChannelSetting');
@@ -30,16 +30,13 @@ const gearOptions = [
   'Godly Sprinkler', 'Advanced Sprinkler', 'Master Sprinkler', 'Lightning Rod'
 ];
 
-// Slash command registration
 async function registerCommands(clientId) {
   const commands = [
     new SlashCommandBuilder()
       .setName('setchannel')
       .setDescription('Select a channel to receive stock notifications.')
       .addChannelOption(option =>
-        option.setName('channel')
-          .setDescription('The channel to receive stock notifications.')
-          .setRequired(true)
+        option.setName('channel').setDescription('The channel to receive stock notifications.').setRequired(true)
       ),
     new SlashCommandBuilder()
       .setName('setroles')
@@ -59,7 +56,6 @@ async function registerCommands(clientId) {
   console.log('✅ Slash commands registered.');
 }
 
-// Load stored channel/role data (future-proofing)
 async function loadSettings() {
   const settings = await ChannelSetting.find();
   for (const setting of settings) {
@@ -69,7 +65,6 @@ async function loadSettings() {
   }
 }
 
-// Bot ready event
 client.on('ready', async () => {
   console.log('🤖 Bot is ready!');
   await registerCommands(client.user.id);
@@ -77,10 +72,8 @@ client.on('ready', async () => {
   updateBotStatus();
 });
 
-// Handle slash commands
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
-
   const { commandName, member, guildId } = interaction;
   if (!guildId) return;
 
@@ -103,9 +96,8 @@ client.on('interactionCreate', async interaction => {
       console.error('Error updating channel:', err);
       await interaction.editReply('❌ Failed to update the notification channel.');
     }
-  }
 
-  else if (commandName === 'setroles') {
+  } else if (commandName === 'setroles') {
     if (!member.permissions.has(PermissionsBitField.Flags.Administrator)) {
       return interaction.reply({ content: '❌ You must be an admin to use this.', ephemeral: true });
     }
@@ -123,20 +115,15 @@ client.on('interactionCreate', async interaction => {
     );
 
     await interaction.reply({ content: `✅ Roles saved: ${JSON.stringify(roles)}`, ephemeral: true });
-  }
 
-  else if (commandName === 'help') {
+  } else if (commandName === 'help') {
     await interaction.reply({
-      content: `📘 Commands:
-- /setchannel — Set stock notification channel (admin only)
-- /setroles — Set roles to ping by item (admin only)
-- /help — Show this help message`,
+      content: `📘 Commands:\n- /setchannel — Set stock notification channel (admin only)\n- /setroles — Set roles to ping by item (admin only)\n- /help — Show this help message`,
       ephemeral: true
     });
   }
 });
 
-// Handle POST from webhook
 app.post('/send-stock', async (req, res) => {
   const stockData = req.body;
   if (!stockData || !stockData.embeds || !Array.isArray(stockData.embeds)) {
@@ -146,68 +133,38 @@ app.post('/send-stock', async (req, res) => {
   const embedData = stockData.embeds[0];
   if (!embedData.fields) return res.status(400).send('No stock fields found.');
 
-  // Create the embed
   const embed = new EmbedBuilder()
-    .setTitle(embedData.title || '🛍️ Shop Stock Update')
-    .setDescription(embedData.description || 'Here are the current shop items available:')
-    .setColor(embedData.color || 0x58D68D);
+    .setTitle('🛍️ Shop Stock Update')
+    .setDescription('Here are the current shop items available:')
+    .setColor(0x00C176);
 
-  // Track if we’ve added "Seeds" or "Gears" section titles already
-  let addedSeeds = false;
-  let addedGears = false;
+  const seeds = [];
+  const gears = [];
 
-// Extract and organize fields
-const seeds = [];
-const gears = [];
+  for (const field of embedData.fields) {
+    const name = field.name?.trim().replace(/\^\$/, '');
+    const value = field.value?.trim().replace(/\$/g, '').toLowerCase();
 
-for (const field of embedData.fields) {
-  const name = field.name.trim().replace(/^\$/, '');
-  const value = field.value.trim().replace(/\$/g, '').toLowerCase();
+    if (!name || !value) continue;
 
-  // Skip invalid or header fields
-  if (!name || !value) continue;
+    const isHeader = ['seeds', '🌱 seeds', 'gears', '🛠️ gears'].some(h => name.toLowerCase().includes(h));
+    if (isHeader) continue;
 
-  const isSectionHeader = ['seeds', '🌱 seeds', 'gears', '🛠️ gears'].includes(name.toLowerCase());
-  if (isSectionHeader) continue;
-
-  // Categorize
-  if (value.includes('seed')) {
-    seeds.push({ name, value });
-  } else if (value.includes('gear')) {
-    gears.push({ name, value });
+    if (value.includes('seed')) {
+      seeds.push(`**${name}**: ${value}`);
+    } else if (value.includes('gear')) {
+      gears.push(`**${name}**: ${value}`);
+    }
   }
-}
 
-// Rebuild embed
-embed.setDescription('🛍️ **Shop Stock Update**\nHere are the current shop items available:');
-
-// Add Seeds Section
-if (seeds.length > 0) {
-  embed.addFields({ name: '🌱 Seeds', value: '\u200B', inline: false });
-
-  for (const item of seeds) {
-    embed.addFields({
-      name: item.name,
-      value: item.value,
-      inline: true
-    });
+  if (seeds.length > 0) {
+    embed.addFields({ name: '🌱 Seeds', value: seeds.join('\n'), inline: false });
   }
-}
 
-// Add Gears Section
-if (gears.length > 0) {
-  embed.addFields({ name: '🛠️ Gears', value: '\u200B', inline: false });
-
-  for (const item of gears) {
-    embed.addFields({
-      name: item.name,
-      value: item.value,
-      inline: true
-    });
+  if (gears.length > 0) {
+    embed.addFields({ name: '🛠️ Gears', value: gears.join('\n'), inline: false });
   }
-}
 
-  // Send to all registered channels
   const settings = await ChannelSetting.find();
   for (const setting of settings) {
     const channel = await client.channels.fetch(setting.channelId).catch(() => null);
@@ -223,13 +180,11 @@ if (gears.length > 0) {
   res.sendStatus(200);
 });
 
-// Status update rotation
 function updateBotStatus() {
   const activities = [
     () => ({ type: 3, name: `/help` }),
-    () => ({ type: 3, name: `${client.guilds.cache.size} servers...` }),
+    () => ({ type: 3, name: `${client.guilds.cache.size} servers...` })
   ];
-
   let i = 0;
   setInterval(() => {
     const activity = activities[i % activities.length]();
@@ -238,12 +193,10 @@ function updateBotStatus() {
   }, 10000);
 }
 
-// Root route for health check
 app.get('/', (req, res) => {
   res.send('✅ Stock bot is running.');
 });
 
-// Start MongoDB connection and server
 mongoose.connect(mongoUri)
   .then(() => {
     console.log('🟢 Connected to MongoDB.');
