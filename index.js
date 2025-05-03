@@ -134,7 +134,7 @@ client.on('interactionCreate', async interaction => {
 
     const roleKeys = [
       'daffodil', 'watermelon', 'pumpkin', 'apple', 'bamboo', 'coconut',
-      'cactus', 'dragonfruit', 'mango', 'grape', 'mushroom', 'pepper'
+      'cactus', 'dragonfruit', 'mango', 'grape', 'mushroom', 'pepper',
       'godlysprinkler', 'advancedsprinkler', 'mastersprinkler', 'lightningrod',
       'rain', 'thunderstorm', 'frost'
     ];
