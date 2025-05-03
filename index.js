@@ -211,7 +211,7 @@ app.post('/send-stock', async (req, res) => {
         for (const [key, roleId] of Object.entries(setting.roles)) {
           const formattedKey = removeStockSuffix(key);
           if (normalizedLines.some(line => line.includes(formattedKey))) {
-            pingRoles.push(`<@&${roleId}>`);
+            pingRoles.push(`${roleId}`);
             console.log(`✅ Matched keyword "${key}" → ping <@&${roleId}>`);
           }
         }
