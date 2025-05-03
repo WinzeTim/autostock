@@ -156,7 +156,7 @@ app.post('/send-stock', async (req, res) => {
   let addedSeeds = false;
   let addedGears = false;
 
-// Organize fields into categories
+// Extract and organize fields
 const seeds = [];
 const gears = [];
 
@@ -164,11 +164,13 @@ for (const field of embedData.fields) {
   const name = field.name.trim().replace(/^\$/, '');
   const value = field.value.trim().replace(/\$/g, '').toLowerCase();
 
-  // Skip section titles
+  // Skip invalid or header fields
+  if (!name || !value) continue;
+
   const isSectionHeader = ['seeds', '🌱 seeds', 'gears', '🛠️ gears'].includes(name.toLowerCase());
   if (isSectionHeader) continue;
 
-  // Categorize based on value
+  // Categorize
   if (value.includes('seed')) {
     seeds.push({ name, value });
   } else if (value.includes('gear')) {
@@ -176,9 +178,13 @@ for (const field of embedData.fields) {
   }
 }
 
-// Add header and items for seeds
+// Rebuild embed
+embed.setDescription('🛍️ **Shop Stock Update**\nHere are the current shop items available:');
+
+// Add Seeds Section
 if (seeds.length > 0) {
   embed.addFields({ name: '🌱 Seeds', value: '\u200B', inline: false });
+
   for (const item of seeds) {
     embed.addFields({
       name: item.name,
@@ -188,9 +194,10 @@ if (seeds.length > 0) {
   }
 }
 
-// Add header and items for gears
+// Add Gears Section
 if (gears.length > 0) {
   embed.addFields({ name: '🛠️ Gears', value: '\u200B', inline: false });
+
   for (const item of gears) {
     embed.addFields({
       name: item.name,
@@ -199,7 +206,6 @@ if (gears.length > 0) {
     });
   }
 }
-
 
   // Send to all registered channels
   const settings = await ChannelSetting.find();
