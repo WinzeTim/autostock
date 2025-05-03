@@ -171,11 +171,17 @@ app.post('/send-stock', async (req, res) => {
   }
 
   const embed = data.embeds[0];
-  const embedText = embed?.description?.toLowerCase() || '';
+  const rawText = embed?.description || '';
+
+  // Normalize and clean lines
+  const lines = rawText.split('\n').map(line => {
+    // Remove ": [number] seed/gear/units" from the end of each line
+    return line.replace(/:.*$/, '').toLowerCase().replace(/\s+/g, '');
+  });
 
   const settings = await ChannelSetting.find();
+
   for (const setting of settings) {
-    // Determine which channel to send the embed to based on the webhook type
     let channelIdToUse = setting.channelId;
     if (type === 'weather' && setting.weatherChannelId) {
       channelIdToUse = setting.weatherChannelId;
@@ -184,29 +190,28 @@ app.post('/send-stock', async (req, res) => {
     }
 
     const channel = await client.channels.fetch(channelIdToUse).catch(() => null);
+    if (!channel || !channel.isTextBased()) continue;
 
-    if (channel && channel.isTextBased()) {
-      try {
-        const pingRoles = [];
+    try {
+      const pingRoles = [];
 
-        // Check if roles should be pinged based on keywords in the embed
-        if (setting.roles && typeof setting.roles === 'object') {
-          for (const [key, roleId] of Object.entries(setting.roles)) {
-            if (roleId && embedText.includes(key.toLowerCase())) {
-              pingRoles.push(`<@&${roleId}>`);
-              console.log(`Pinging role for ${key}: <@&${roleId}>`);
-            }
+      if (setting.roles && typeof setting.roles === 'object') {
+        for (const [key, roleId] of Object.entries(setting.roles)) {
+          const formattedKey = key.toLowerCase().replace(/\s+/g, '');
+          if (lines.some(line => line.includes(formattedKey))) {
+            pingRoles.push(`<@&${roleId}>`);
+            console.log(`✅ Matched keyword "${key}", pinging role <@&${roleId}>`);
           }
         }
-
-        await channel.send({
-          content: pingRoles.join(' ') || null,
-          embeds: [embed],
-        });
-
-      } catch (err) {
-        console.error(`Failed to send to channel ${channelIdToUse}:`, err);
       }
+
+      await channel.send({
+        content: pingRoles.length > 0 ? pingRoles.join(' ') : null,
+        embeds: [embed],
+      });
+
+    } catch (err) {
+      console.error(`❌ Failed to send to channel ${channelIdToUse}:`, err);
     }
   }
 
