@@ -30,6 +30,12 @@ async function registerCommands(clientId) {
         option.setName('channel').setDescription('The channel to receive stock notifications.').setRequired(true)
       ),
     new SlashCommandBuilder()
+      .setName('setweatherchannel')
+      .setDescription('Select a channel to receive weather notifications.')
+      .addChannelOption(option =>
+        option.setName('channel').setDescription('The channel to receive weather alerts.').setRequired(true)
+      ),
+    new SlashCommandBuilder()
       .setName('setroles')
       .setDescription('Set roles to be pinged for stock updates by item.')
       .addStringOption(option => option.setName('apple').setDescription('Role to ping for Apple Seeds.'))
@@ -38,7 +44,6 @@ async function registerCommands(clientId) {
       .addStringOption(option => option.setName('pumpkin').setDescription('Role to ping for Pumpkin Seeds.'))
       .addStringOption(option => option.setName('cactus').setDescription('Role to ping for Cactus Seeds.'))
       .addStringOption(option => option.setName('gear').setDescription('Role to ping for Gear items.')),
-
     new SlashCommandBuilder()
       .setName('help')
       .setDescription('Lists all available commands.')
@@ -54,6 +59,7 @@ async function loadSettings() {
     const guild = await client.guilds.fetch(setting.guildId).catch(() => null);
     if (!guild) continue;
     await client.channels.fetch(setting.channelId).catch(() => null);
+    if (setting.weatherChannelId) await client.channels.fetch(setting.weatherChannelId).catch(() => null);
   }
 }
 
@@ -89,6 +95,26 @@ client.on('interactionCreate', async interaction => {
       await interaction.editReply('❌ Failed to update the notification channel.');
     }
 
+  } else if (commandName === 'setweatherchannel') {
+    if (!member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+      return interaction.reply({ content: '❌ You must be an admin to use this.', ephemeral: true });
+    }
+
+    const selectedChannel = interaction.options.getChannel('channel');
+
+    try {
+      await interaction.deferReply({ ephemeral: true });
+      await ChannelSetting.findOneAndUpdate(
+        { guildId },
+        { guildId, weatherChannelId: selectedChannel.id },
+        { upsert: true }
+      );
+      await interaction.editReply(`🌤️ Weather notifications will now be sent to ${selectedChannel}.`);
+    } catch (err) {
+      console.error('Error updating weather channel:', err);
+      await interaction.editReply('❌ Failed to update the weather channel.');
+    }
+
   } else if (commandName === 'setroles') {
     if (!member.permissions.has(PermissionsBitField.Flags.Administrator)) {
       return interaction.reply({ content: '❌ You must be an admin to use this.', ephemeral: true });
@@ -110,37 +136,40 @@ client.on('interactionCreate', async interaction => {
 
   } else if (commandName === 'help') {
     await interaction.reply({
-      content: `📘 Commands:\n- /setchannel — Set stock notification channel (admin only)\n- /setroles — Set roles to ping by item (admin only)\n- /help — Show this help message`,
+      content: `📘 Commands:\n- /setchannel — Set stock notification channel (admin only)\n- /setweatherchannel — Set weather notification channel (admin only)\n- /setroles — Set roles to ping by item (admin only)\n- /help — Show this help message`,
       ephemeral: true
     });
   }
 });
 
 app.post('/send-stock', async (req, res) => {
-  const stockData = req.body;
+  const data = req.body;
+  const type = data.type || 'stock'; // 'weather' or 'stock'
 
-  // Ensure there is valid embed data to send
-  if (!stockData.embeds || !Array.isArray(stockData.embeds) || stockData.embeds.length === 0) {
+  if (!data.embeds || !Array.isArray(data.embeds) || data.embeds.length === 0) {
     return res.status(400).send('No valid embed found in the webhook data.');
   }
 
-  const embed = stockData.embeds[0]; // Assuming the first embed is the relevant one
+  const embed = data.embeds[0];
 
-  // Forward the embed directly to the configured channels
   const settings = await ChannelSetting.find();
   for (const setting of settings) {
-    const channel = await client.channels.fetch(setting.channelId).catch(() => null);
+    let channelIdToUse = setting.channelId;
+    if (type === 'weather' && setting.weatherChannelId) {
+      channelIdToUse = setting.weatherChannelId;
+    }
+
+    const channel = await client.channels.fetch(channelIdToUse).catch(() => null);
     if (channel && channel.isTextBased()) {
       try {
-        // Directly forward the embed from Roblox to the channel
         await channel.send({ embeds: [embed] });
       } catch (err) {
-        console.error(`Failed to send to channel ${setting.channelId}:`, err);
+        console.error(`Failed to send to channel ${channelIdToUse}:`, err);
       }
     }
   }
 
-  res.sendStatus(200); // Return successful response
+  res.sendStatus(200);
 });
 
 function updateBotStatus() {
