@@ -22,6 +22,23 @@ app.use(express.json());
 const rest = new REST({ version: '10' }).setToken(token);
 
 async function registerCommands(clientId) {
+  const roleKeys = [
+    'daffodil', 'watermelon', 'pumpkin', 'apple', 'bamboo', 'coconut',
+    'cactus', 'dragonfruit', 'mango', 'grape', 'mushroom', 'pepper',
+    'godlysprinkler', 'advancedsprinkler', 'mastersprinkler', 'lightningrod',
+    'rain', 'thunderstorm', 'frost'
+  ];
+
+  const setRolesCommand = new SlashCommandBuilder()
+    .setName('setroles')
+    .setDescription('Set roles to be pinged for stock updates by item.');
+
+  roleKeys.forEach(key => {
+    setRolesCommand.addStringOption(option =>
+      option.setName(key).setDescription(`Role to ping for ${key.charAt(0).toUpperCase() + key.slice(1)}.`).setRequired(false)
+    );
+  });
+
   const commands = [
     new SlashCommandBuilder()
       .setName('setchannel')
@@ -41,10 +58,7 @@ async function registerCommands(clientId) {
       .addChannelOption(option =>
         option.setName('channel').setDescription('The channel to receive weather alerts.').setRequired(true)
       ),
-    new SlashCommandBuilder()
-      .setName('setroles')
-      .setDescription('Set roles to be pinged for stock updates by item.')
-      .addStringOption(option => option.setName('frost').setDescription('Role to ping for Frost.')),
+    setRolesCommand,
     new SlashCommandBuilder()
       .setName('help')
       .setDescription('Lists all available commands.')
